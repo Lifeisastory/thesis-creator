@@ -11,9 +11,9 @@
 [![Claude](https://img.shields.io/badge/Claude-Code-Compatible.svg)](https://claude.ai/)
 [![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)](docs/CHANGELOG.md)
 
-[功能特性](#-功能特性) •
-[快速开始](#-快速开始) •
-[使用文档](#-文档) •
+[功能特性](#功能特性) •
+[快速开始](#快速开始) •
+[使用文档](/thesis-creator/docs/usage_guide.md) •
 [贡献指南](CONTRIBUTING.md)
 
 </div>
