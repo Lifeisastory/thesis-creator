@@ -183,6 +183,38 @@ def add_list_item(doc, text: str, ordered: bool = False):
     set_chinese_font(run, '宋体', 12)
 
 
+def clean_markdown_content(content: str) -> str:
+    """
+    清理 Markdown 内容中的无意义字符
+
+    Args:
+        content: 原始 Markdown 内容
+
+    Returns:
+        清理后的内容
+    """
+    # 移除连续多个 ---（3个以上的水平线）
+    content = re.sub(r'\n-{3,}\n', '\n\n', content)
+    content = re.sub(r'\n-{3,}\s*\n', '\n\n', content)
+
+    # 移除开头的 ---
+    content = re.sub(r'^-{3,}\s*\n', '', content)
+
+    # 移除结尾的 ---
+    content = re.sub(r'\n\s*-{3,}$', '', content)
+
+    # 移除多余的星号分隔线
+    content = re.sub(r'\n\*{3,}\n', '\n\n', content)
+
+    # 压缩多个空行为最多两个
+    content = re.sub(r'\n{4,}', '\n\n\n', content)
+
+    # 移除行尾空白
+    content = re.sub(r'[ \t]+\n', '\n', content)
+
+    return content
+
+
 def parse_markdown(content: str) -> list:
     """解析 Markdown 内容，返回结构化数据"""
     lines = content.split('\n')
@@ -275,6 +307,9 @@ def convert_md_to_docx(input_path: str, output_path: str) -> Tuple[bool, str]:
 
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
+
+        # 清理无意义字符
+        content = clean_markdown_content(content)
 
         # 解析 Markdown
         elements = parse_markdown(content)

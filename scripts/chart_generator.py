@@ -16,7 +16,7 @@ import re
 import argparse
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 import json
 
 # 导入日志模块
@@ -228,22 +228,151 @@ graph TB
     C3 --> D3
 ```'''
 
-    def _generate_flowchart(self, placeholder: ChartPlaceholder) -> str:
-        """生成流程图 Mermaid 代码"""
-        return f'''```mermaid
-%% {placeholder.chart_id} {placeholder.chart_name}
-flowchart TD
-    A([开始]) --> B[用户请求]
-    B --> C{{
-检查请求有效性
-}}
-    C -->|有效| D[处理业务逻辑]
-    C -->|无效| E[返回错误信息]
-    D --> F[数据持久化]
-    F --> G[生成响应]
-    G --> H([结束])
-    E --> H
-```'''
+    def _generate_flowchart(self, placeholder: ChartPlaceholder, context: str = "") -> str:
+        """
+        生成流程图 Mermaid 代码（增强版）
+
+        支持从描述中提取步骤，生成更详细的流程图
+
+        Args:
+            placeholder: 图表占位符
+            context: 上下文内容（可选）
+
+        Returns:
+            Mermaid 代码
+        """
+        # 尝试从描述中提取步骤
+        steps = self._extract_steps_from_description(placeholder.description)
+
+        if not steps:
+            # 使用默认步骤
+            steps = [
+                {"name": "用户请求", "type": "process"},
+                {"name": "检查请求有效性", "type": "decision"},
+                {"name": "处理业务逻辑", "type": "process"},
+                {"name": "数据持久化", "type": "process"},
+                {"name": "生成响应", "type": "process"},
+            ]
+
+        # 构建 Mermaid 代码
+        lines = [
+            f"```mermaid",
+            f"%% {placeholder.chart_id} {placeholder.chart_name}",
+            f"%% 自动生成于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"flowchart TD",
+            f"    %% 节点定义",
+            f"    A([开始])",
+        ]
+
+        # 定义节点
+        node_definitions = []
+        for i, step in enumerate(steps):
+            node_id = chr(66 + i)  # B, C, D...
+            step_name = step.get("name", f"步骤{i+1}")
+            step_type = step.get("type", "process")
+
+            if step_type == "decision":
+                node_definitions.append(f'    {node_id}{{{{{step_name}}}}}')
+            elif step_type == "io":
+                node_definitions.append(f'    {node_id}[/{step_name}/]')
+            else:
+                node_definitions.append(f'    {node_id}[{step_name}]')
+
+        lines.extend(node_definitions)
+        lines.append(f"    Z([结束])")
+
+        # 定义连接关系
+        lines.append(f"    %% 流程连接")
+        lines.append(f"    A --> B")
+
+        prev_node = "B"
+        for i, step in enumerate(steps):
+            current_node = chr(66 + i)  # B, C, D...
+            next_node = chr(67 + i) if i < len(steps) - 1 else "Z"
+
+            step_type = step.get("type", "process")
+
+            if step_type == "decision":
+                # 决策节点有两个分支
+                yes_action = step.get("yes_action", "继续")
+                no_action = step.get("no_action", "结束")
+                lines.append(f'    {current_node} -->|{yes_action}| {next_node}')
+                lines.append(f'    {current_node} -->|{no_action}| Z')
+            else:
+                lines.append(f'    {current_node} --> {next_node}')
+
+            prev_node = next_node
+
+        lines.append("```")
+
+        return "\n".join(lines)
+
+    def _extract_steps_from_description(self, description: str) -> List[Dict]:
+        """
+        从描述中提取流程步骤
+
+        Args:
+            description: 图表描述
+
+        Returns:
+            步骤列表
+        """
+        steps = []
+
+        # 模式 1：数字序号步骤 "1. xxx" 或 "1、xxx"
+        numbered_pattern = r'[（(]?\d+[）)、.．]\s*(.+?)(?=[（(]?\d+[）)、.．]|$)'
+        matches = re.findall(numbered_pattern, description)
+
+        if matches:
+            for match in matches:
+                step_text = match.strip()
+                if step_text:
+                    step_type = "decision" if "判断" in step_text or "检查" in step_text or "验证" in step_text else "process"
+                    steps.append({"name": step_text, "type": step_type})
+            return steps
+
+        # 模式 2：中文序号步骤 "第一步：xxx" 或 "首先xxx"
+        chinese_pattern = r'(第[一二三四五六七八九十]+步[：:]\s*|首先[，,]?\s*|然后[，,]?\s*|接着[，,]?\s*|最后[，,]?\s*)(.+?)(?=第[一二三四五六七八九十]+步[：:]|首先|然后|接着|最后|$)'
+        matches = re.findall(chinese_pattern, description)
+
+        if matches:
+            for prefix, content in matches:
+                step_text = content.strip()
+                if step_text:
+                    step_type = "decision" if "判断" in step_text or "检查" in step_text else "process"
+                    steps.append({"name": step_text, "type": step_type})
+            return steps
+
+        # 模式 3：箭头分隔 "A -> B -> C"
+        arrow_pattern = r'([^-→]+)\s*[-→]+\s*'
+        matches = re.findall(arrow_pattern, description)
+
+        if matches:
+            for match in matches:
+                step_text = match.strip()
+                if step_text:
+                    steps.append({"name": step_text, "type": "process"})
+
+            # 添加最后一个节点
+            last_match = re.search(r'[-→]+\s*([^-→]+)$', description)
+            if last_match:
+                steps.append({"name": last_match.group(1).strip(), "type": "process"})
+
+            return steps
+
+        # 模式 4：步骤列表格式 "- 步骤描述"
+        list_pattern = r'[-*•]\s*(.+?)(?=\n|$)'
+        matches = re.findall(list_pattern, description)
+
+        if matches:
+            for match in matches:
+                step_text = match.strip()
+                if step_text and len(step_text) > 2:
+                    step_type = "decision" if "判断" in step_text or "检查" in step_text else "process"
+                    steps.append({"name": step_text, "type": step_type})
+            return steps
+
+        return steps
 
     def _generate_er_diagram(self, placeholder: ChartPlaceholder) -> str:
         """生成 E-R 图 Mermaid 代码"""
