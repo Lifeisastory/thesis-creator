@@ -34,6 +34,14 @@ except ImportError:
     print("[警告] python-docx 未安装，Word 导出功能不可用")
     print("安装命令: pip install python-docx")
 
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("[警告] Pillow 未安装，图片尺寸自动缩放功能不可用")
+    print("安装命令: pip install Pillow")
+
 
 def set_chinese_font(run, font_name: str = '宋体', font_size: int = 12, bold: bool = False):
     """设置中文字体"""
@@ -183,14 +191,63 @@ def add_list_item(doc, text: str, ordered: bool = False):
     set_chinese_font(run, '宋体', 12)
 
 
-def add_image(doc, image_path: str, width_cm: float = 12.0, base_dir: str = ''):
+def calculate_image_size(image_path: str, max_width_cm: float = 14.0, max_height_cm: float = 18.0) -> Tuple[float, float]:
     """
-    添加图片到文档
+    计算图片在 Word 文档中的合适尺寸
+
+    Args:
+        image_path: 图片路径
+        max_width_cm: 最大宽度（厘米），A4 纸有效宽度约 14cm
+        max_height_cm: 最大高度（厘米），避免图片过长
+
+    Returns:
+        (width_cm, height_cm): 计算后的尺寸
+    """
+    if not PIL_AVAILABLE:
+        # Pillow 不可用时使用默认宽度
+        return max_width_cm, None
+
+    try:
+        with Image.open(image_path) as img:
+            # 获取原始尺寸（像素）
+            orig_width_px, orig_height_px = img.size
+
+            # 假设 Word 文档 DPI 为 96（标准屏幕 DPI）
+            # 1 英寸 = 2.54 厘米，1 厘米 ≈ 37.8 像素（96 DPI）
+            dpi = 96
+            px_per_cm = dpi / 2.54
+
+            # 转换为厘米
+            orig_width_cm = orig_width_px / px_per_cm
+            orig_height_cm = orig_height_px / px_per_cm
+
+            # 计算缩放比例
+            scale_w = max_width_cm / orig_width_cm if orig_width_cm > max_width_cm else 1.0
+            scale_h = max_height_cm / orig_height_cm if orig_height_cm > max_height_cm else 1.0
+
+            # 使用较小的缩放比例，确保图片不会超出边界
+            scale = min(scale_w, scale_h)
+
+            final_width_cm = orig_width_cm * scale
+            final_height_cm = orig_height_cm * scale
+
+            return final_width_cm, final_height_cm
+
+    except Exception as e:
+        print(f"[警告] 无法读取图片尺寸: {e}")
+        return max_width_cm, None
+
+
+def add_image(doc, image_path: str, width_cm: float = None, max_width_cm: float = 14.0, max_height_cm: float = 18.0, base_dir: str = ''):
+    """
+    添加图片到文档（自动缩放）
 
     Args:
         doc: Word 文档对象
         image_path: 图片路径（相对路径或绝对路径）
-        width_cm: 图片宽度（厘米），默认12cm（适合A4纸张）
+        width_cm: 图片宽度（厘米），如果为 None 则自动计算
+        max_width_cm: 最大宽度限制（厘米）
+        max_height_cm: 最大高度限制（厘米）
         base_dir: 基础目录，用于解析相对路径
 
     Returns:
@@ -210,6 +267,14 @@ def add_image(doc, image_path: str, width_cm: float = 12.0, base_dir: str = ''):
         return False
 
     try:
+        # 计算合适的尺寸
+        if width_cm is None:
+            calc_width, calc_height = calculate_image_size(str(full_path), max_width_cm, max_height_cm)
+            width_cm = calc_width
+        else:
+            # 用户指定了宽度，但仍然需要检查是否超出最大值
+            width_cm = min(width_cm, max_width_cm)
+
         # 创建居中段落
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -247,9 +312,22 @@ def add_figure_caption(doc, caption: str):
     set_chinese_font(run, '宋体', 10.5)  # 五号字体
 
 
+def add_page_break(doc):
+    """
+    添加分页符
+
+    在当前位置插入分页符，后续内容从新页面开始。
+
+    Args:
+        doc: Word 文档对象
+    """
+    # 使用 docx 的 add_page_break 方法
+    doc.add_page_break()
+
+
 def clean_markdown_content(content: str) -> str:
     """
-    清理 Markdown 内容中的无意义字符
+    清理 Markdown 内容中的无意义字符和图表占位符
 
     Args:
         content: 原始 Markdown 内容
@@ -257,6 +335,18 @@ def clean_markdown_content(content: str) -> str:
     Returns:
         清理后的内容
     """
+    # 移除图表占位符注释块（<!-- 图表占位符：... -->）
+    content = re.sub(r'<!--\s*图表占位符[^\n]*-->\s*\n', '', content)
+
+    # 移除图表占位符引用块（> 📊 **[图表占位符]** ... 以及后续的 > 行）
+    # 匹配以 > 📊 **[图表占位符]** 开始的块，直到遇到非 > 行或空行
+    content = re.sub(r'> 📊 \*\*\[图表占位符\]\*\*[^\n]*\n(?:> [^\n]*\n)*', '', content)
+
+    # 移除单独的图表占位符引用行
+    content = re.sub(r'> - \*\*图表编号\*\*[^\n]*\n', '', content)
+    content = re.sub(r'> - \*\*图表名称\*\*[^\n]*\n', '', content)
+    content = re.sub(r'> - \*\*图表类型\*\*[^\n]*\n', '', content)
+
     # 移除连续多个 ---（3个以上的水平线）
     content = re.sub(r'\n-{3,}\n', '\n\n', content)
     content = re.sub(r'\n-{3,}\s*\n', '\n\n', content)
@@ -323,6 +413,11 @@ def parse_markdown(content: str) -> list:
                 elements.append(('table', table_rows))
                 table_rows = []
                 in_table = False
+
+        # 分页符处理 - \newpage 或 \pagebreak
+        if line.strip() == '\\newpage' or line.strip() == '\\pagebreak':
+            elements.append(('pagebreak',))
+            continue
 
         # 图片处理 - 格式: ![alt](path) 或 ![图X-X 说明](images/xxx.png)
         img_match = re.match(r'^!\[([^\]]*)\]\(([^)]+)\)\s*$', line)
@@ -417,11 +512,14 @@ def convert_md_to_docx(input_path: str, output_path: str) -> Tuple[bool, str]:
                 add_table(doc, elem[1])
             elif elem_type == 'list':
                 add_list_item(doc, elem[1], elem[2] if len(elem) > 2 else False)
+            elif elem_type == 'pagebreak':
+                # 分页符处理
+                add_page_break(doc)
             elif elem_type == 'image':
-                # 处理图片
+                # 处理图片（自动缩放）
                 img_path = elem[1]
                 alt_text = elem[2] if len(elem) > 2 else ''
-                success = add_image(doc, img_path, width_cm=12.0, base_dir=str(base_dir))
+                success = add_image(doc, img_path, width_cm=None, base_dir=str(base_dir))
                 if success:
                     image_count += 1
                     # 添加图注（如果有说明文字）
