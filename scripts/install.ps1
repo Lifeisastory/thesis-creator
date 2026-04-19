@@ -123,7 +123,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "使用方法：" -ForegroundColor Cyan
 Write-Host "  1. 将参考资料放入 references/ 目录" -ForegroundColor White
-Write-Host "  2. 在 Claude Code 中说：「帮我写论文，主题是...」" -ForegroundColor White
+Write-Host "  2. 在 Codex 中说：「帮我写论文，主题是...」" -ForegroundColor White
 Write-Host ""
 Write-Host "单独使用 Python 工具：" -ForegroundColor Cyan
 Write-Host "  python scripts/aigc_detect.py --input paper.md" -ForegroundColor White
