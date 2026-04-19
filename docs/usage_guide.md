@@ -27,7 +27,7 @@
 |------|------|
 | 操作系统 | Windows 10/11 |
 | Python | 3.9+ |
-| Claude Code | 已安装并可运行 |
+| Codex | 已安装并可运行 |
 
 ---
 
@@ -95,7 +95,7 @@ references/
 
 ### 3.2 触发 Skill
 
-在 Claude Code 中说：
+在 Codex 中说：
 
 ```
 帮我写论文，主题是《大数据在精准营销中的应用研究》

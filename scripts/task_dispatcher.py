@@ -109,7 +109,7 @@ class TaskDispatcher:
     """
     任务分发器
 
-    负责将耗时任务分发到 Claude Code 的 subAgent 执行
+    负责将耗时任务分发到 Codex 的 subAgent 执行
     """
 
     def __init__(self, max_concurrent: int = 4, output_dir: str = "workspace/tasks"):

@@ -8,7 +8,7 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Claude](https://img.shields.io/badge/Claude-Code-Compatible.svg)](https://claude.ai/)
+[![Codex](https://img.shields.io/badge/Codex-Skill-Compatible-10A37F.svg)](https://github.com/openai/codex)
 [![Version](https://img.shields.io/badge/Version-1.1.0-green.svg)](docs/CHANGELOG.md)
 
 [功能特性](#功能特性) •
@@ -22,7 +22,7 @@
 
 ## 简介
 
-论文创作 Agent 系统是一个基于 Claude Code 的毕业论文写作辅助工具。通过智能化的 8 步工作流，帮助本科生高效完成毕业论文创作，同时提供降重优化和 AIGC 检测功能。
+论文创作 Agent 系统是一个基于 Codex Skill 的毕业论文写作辅助工具。通过智能化的 8 步工作流，帮助本科生高效完成毕业论文创作，同时提供降重优化和 AIGC 检测功能。
 
 ## 功能特性
 
@@ -185,36 +185,33 @@
 ### 前置要求
 
 - Python 3.9+
-- Claude Code 已安装
+- Codex 已安装并可运行
 - Windows 10/11
 
 ### 安装
 
-#### 方式一：Claude Skill 安装
+#### 方式一：Codex Skill 安装（推荐）
 
 ```powershell
-# 自然语言安装
-帮我安装下 skill，项目地址是：https://github.com/Stars-OC/thesis-creator.git
-
-# 从 GitHub 安装
+# 方式 A：直接复制到本地 Codex 技能目录
 git clone https://github.com/Stars-OC/thesis-creator.git
-将文件放入./claude-skills/skills/ 下
+mkdir -p "$HOME/.codex/skills"
+cp -r thesis-creator "$HOME/.codex/skills/thesis-creator"
 
-# 市场安装 (待进行)
+# 方式 B：如你已设置 CODEX_HOME
+# cp -r thesis-creator "$CODEX_HOME/skills/thesis-creator"
 
 ```
 
-#### 方式二：OpenSkills 安装
+#### 方式二：Git 子模块安装（可选）
 
-使用 OpenSkills 包管理器安装：
+适合希望长期跟踪上游更新的场景：
 
 ```powershell
-# 安装 OpenSkills CLI（如未安装）
-pip install openskills
-
-# 或从 GitHub 安装
-openskills install https://github.com/Stars-OC/thesis-creator.git
-openskills sync
+# 在你的技能目录中添加本仓库
+cd $HOME/.codex/skills
+git submodule add https://github.com/Stars-OC/thesis-creator.git thesis-creator
+git submodule update --init --recursive
 ```
 
 #### 方式三：完整安装（推荐）
@@ -264,7 +261,7 @@ references/
 
 **2. 触发 Skill**
 
-在 Claude Code 中输入：
+在 Codex 中输入：
 
 ```
 帮我写论文，主题是《大数据在精准营销中的应用研究》
@@ -378,8 +375,7 @@ thesis-creator/
 
 ## 致谢
 
-- [Claude Code](https://claude.ai/) - AI 编程助手
-- [Anthropic](https://www.anthropic.com/) - Claude 模型提供方
+- [OpenAI Codex](https://github.com/openai/codex) - AI 编程助手
 
 ---
 
